@@ -1,9 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchActivities } from '../../services/api';
+import { addTestActivity, fetchActivities } from '../../services/api';
 import { deselectActivity, selectActivity } from '../../store/activitiesSlice';
 import { borderRadius, colors, shadows, spacing, typography } from '../../theme';
+
+// Fallback mock data in case database fetch fails
+const mockActivities = [
+  { id: '1', name: 'Going to the grocery store', category: 'Shopping' },
+  { id: '2', name: 'Getting a haircut', category: 'Services' },
+  { id: '3', name: 'Asking for directions', category: 'Travel' },
+  { id: '4', name: 'Ordering a coffee', category: 'Dining' },
+  { id: '5', name: 'Talking to the landlord', category: 'Housing' },
+  { id: '6', name: 'Calling a service company', category: 'Services' },
+  { id: '7', name: 'Riding the subway', category: 'Travel' },
+  { id: '8', name: 'Going to the mall', category: 'Shopping' },
+  { id: '9', name: 'Answering the phone', category: 'Communication' },
+  { id: '10', name: 'Greeting a person', category: 'Social' },
+  { id: '11', name: 'Checking into a hotel', category: 'Travel' },
+  { id: '12', name: 'Visiting a doctor', category: 'Health' },
+  { id: '13', name: 'Discussing work with a colleague', category: 'Work' },
+  { id: '14', name: 'Making a restaurant reservation', category: 'Dining' }
+];
 
 const HomeScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -14,13 +32,21 @@ const HomeScreen = ({ navigation }) => {
   const maxSelected = 10;
 
   useEffect(() => {
-    // Fetch activities from the database
+    // Try to fetch from database first, fall back to mock data if it fails
     const loadActivities = async () => {
       try {
         const activities = await fetchActivities();
-        setAllActivities(activities || []);
+        if (activities && activities.length > 0) {
+          console.log('✅ Loaded activities from Supabase:', activities);
+          setAllActivities(activities);
+        } else {
+          console.log('No activities found in database, using mock data');
+          setAllActivities(mockActivities);
+        }
       } catch (error) {
-        console.error('Failed to load activities:', error);
+        console.error('Failed to load activities from database:', error);
+        console.log('Falling back to mock data');
+        setAllActivities(mockActivities);
       }
     };
     loadActivities();
@@ -78,6 +104,22 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      {/* TEMP: Button to add a test activity to Supabase */}
+      <TouchableOpacity
+        style={{ backgroundColor: '#FFD700', padding: 10, borderRadius: 8, marginBottom: 10 }}
+        onPress={async () => {
+          try {
+            const result = await addTestActivity();
+            console.log('✅ Test activity inserted:', result);
+            Alert.alert('Test Activity Added', 'Check your activities list!');
+          } catch (e) {
+            Alert.alert('Error', 'Failed to add test activity.');
+          }
+        }}
+      >
+        <Text style={{ color: '#333', fontWeight: 'bold' }}>Add Test Activity to Supabase</Text>
+      </TouchableOpacity>
+
       <View style={styles.header}>
         <Image 
           source={require('../../assets/parrot-logo.png')}
