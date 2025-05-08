@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>convrSAYit - Home</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f9ff; /* Light blue background consistent with dashboard */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 0; /* Remove body padding, frame will handle it */
+        }
+        .mobile-frame-container {
+            width: 100%;
+            max-width: 420px; /* Slightly wider for a bit more content space */
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        .mobile-frame {
+            width: 100%;
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            padding: 15px;
+            overflow-y: auto;
+            min-height: calc(100vh - 40px); /* Adjust based on container margin */
+        }
+        .activity-card {
+            background-color: #e0f2fe; /* Light sky blue */
+            border: 1px solid #bae6fd; /* Sky-200 */
+        }
+        .activity-card-selected {
+            background-color: #cffafe; /* Cyan-100 */
+            border: 1px solid #67e8f9; /* Cyan-300 */
+        }
+        /* Custom scrollbar for typeahead results - Webkit only */
+        .typeahead-results::-webkit-scrollbar {
+            width: 6px;
+        }
+        .typeahead-results::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .typeahead-results::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .typeahead-results::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-frame-container">
+        <div class="mobile-frame">
+            <!-- Header -->
+            <header class="text-center mb-6 pt-2">
+                <img src="../../assets/convrSAYit_logo.png" alt="convrSAYit Logo" class="mx-auto mb-3 h-12" style="max-height: 48px;">
+                <h1 class="text-2xl font-bold text-blue-700">Welcome to convrSAYit!</h1>
+                <p class="text-sm text-gray-600">Select your learning activities for today.</p>
+            </header>
+
+            <!-- Activity Selection Section -->
+            <section class="mb-6">
+                <h2 class="text-lg font-semibold text-gray-700 mb-2">Find Activities (up to 10)</h2>
+                <div class="relative">
+                    <input type="text" id="activitySearch" placeholder="e.g., grocery store, ordering coffee..." class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <div id="typeaheadResults" class="absolute z-10 w-full bg-white border border-gray-300 rounded-b-lg shadow-lg mt-1 max-h-48 overflow-y-auto typeahead-results hidden">
+                        <!-- JS will populate this -->
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1 text-right"><span id="selectedCount">0</span>/10 selected</p>
+            </section>
+
+            <!-- Selected Activities Display Area -->
+            <section class="mb-6">
+                <h2 class="text-lg font-semibold text-gray-700 mb-3">Your Daily Activities:</h2>
+                <div id="selectedActivitiesArea" class="space-y-2">
+                    <p class="text-gray-500 italic text-sm" id="noActivitiesMessage">No activities selected yet. Use the search above to add some!</p>
+                    <!-- JS will populate this -->
+                </div>
+            </section>
+
+            <!-- Access All Selected Phrases -->
+            <section class="mb-6">
+                <button id="startTodaysPhrases" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-150 ease-in-out disabled:opacity-50" disabled>
+                    <i class="fas fa-play-circle mr-2"></i>Start Today_s Phrases (All Selected)
+                </button>
+            </section>
+
+            <!-- Navigation to Dashboard -->
+            <section class="border-t border-gray-200 pt-6 mt-auto">
+                 <button onclick="alert("Navigate to Dashboard - Placeholder");" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition duration-150 ease-in-out">
+                    <i class="fas fa-tachometer-alt mr-2"></i>View My Progress Dashboard
+                </button>
+            </section>
+
+        </div>
+    </div>
+
+    <script>
+        const predefinedActivities = [
+            { id: 1, name: "Going to the grocery store", category: "Shopping" },
+            { id: 2, name: "Getting a haircut", category: "Services" },
+            { id: 3, name: "Asking for directions", category: "Travel" },
+            { id: 4, name: "Ordering a coffee", category: "Dining" },
+            { id: 5, name: "Talking to the landlord", category: "Housing" },
+            { id: 6, name: "Calling a service company", category: "Services" },
+            { id: 7, name: "Riding the subway", category: "Travel" },
+            { id: 8, name: "Going to the mall", category: "Shopping" },
+            { id: 9, name: "Answering the phone", category: "Communication" },
+            { id: 10, name: "Greeting a person", category: "Social" },
+            { id: 11, name: "Checking into a hotel", category: "Travel" },
+            { id: 12, name: "Visiting a doctor", category: "Health" },
+            { id: 13, name: "Discussing work with a colleague", category: "Work" },
+            { id: 14, name: "Making a restaurant reservation", category: "Dining" }
+        ];
+
+        let selectedActivities = [];
+        const maxSelected = 10;
+
+        const activitySearchInput = document.getElementById("activitySearch");
+        const typeaheadResultsDiv = document.getElementById("typeaheadResults");
+        const selectedActivitiesArea = document.getElementById("selectedActivitiesArea");
+        const selectedCountSpan = document.getElementById("selectedCount");
+        const noActivitiesMessage = document.getElementById("noActivitiesMessage");
+        const startTodaysPhrasesButton = document.getElementById("startTodaysPhrases");
+
+        function renderTypeahead(query) {
+            typeaheadResultsDiv.innerHTML = "";
+            if (!query) {
+                typeaheadResultsDiv.classList.add("hidden");
+                return;
+            }
+
+            const filtered = predefinedActivities.filter(activity => 
+                activity.name.toLowerCase().includes(query.toLowerCase()) && 
+                !selectedActivities.find(sa => sa.id === activity.id)
+            );
+
+            if (filtered.length > 0) {
+                filtered.forEach(activity => {
+                    const itemDiv = document.createElement("div");
+                    itemDiv.textContent = activity.name;
+                    itemDiv.className = "p-2 hover:bg-gray-100 cursor-pointer";
+                    itemDiv.onclick = () => selectActivity(activity);
+                    typeaheadResultsDiv.appendChild(itemDiv);
+                });
+                typeaheadResultsDiv.classList.remove("hidden");
+            } else {
+                typeaheadResultsDiv.classList.add("hidden");
+            }
+        }
+
+        function selectActivity(activity) {
+            if (selectedActivities.length < maxSelected && !selectedActivities.find(sa => sa.id === activity.id)) {
+                selectedActivities.push(activity);
+                activitySearchInput.value = "";
+                typeaheadResultsDiv.classList.add("hidden");
+                renderSelectedActivities();
+                updateSelectedCount();
+            }
+            if (selectedActivities.length >= maxSelected) {
+                 alert("You have reached the maximum of " + maxSelected + " activities.");
+                 typeaheadResultsDiv.classList.add("hidden");
+            }
+        }
+
+        function deselectActivity(activityId) {
+            selectedActivities = selectedActivities.filter(activity => activity.id !== activityId);
+            renderSelectedActivities();
+            updateSelectedCount();
+        }
+
+        function renderSelectedActivities() {
+            selectedActivitiesArea.innerHTML = ""; // Clear current list
+            if (selectedActivities.length === 0) {
+                selectedActivitiesArea.appendChild(noActivitiesMessage);
+                noActivitiesMessage.classList.remove("hidden");
+                startTodaysPhrasesButton.disabled = true;
+                return;
+            }
+            noActivitiesMessage.classList.add("hidden");
+            startTodaysPhrasesButton.disabled = false;
+
+            selectedActivities.forEach(activity => {
+                const activityDiv = document.createElement("div");
+                activityDiv.className = "flex items-center justify-between p-3 bg-blue-100 border border-blue-300 rounded-lg shadow-sm";
+                
+                const activityNameSpan = document.createElement("span");
+                activityNameSpan.textContent = activity.name;
+                activityNameSpan.className = "text-blue-700 font-medium cursor-pointer";
+                activityNameSpan.onclick = () => alert("Navigate to PhraseCards for: " + activity.name + " - Placeholder");
+
+                const deselectButton = document.createElement("button");
+                deselectButton.innerHTML = 	icks &times; "; // Times symbol for X
+                deselectButton.className = "text-red-500 hover:text-red-700 font-bold text-lg";
+                deselectButton.onclick = () => deselectActivity(activity.id);
+
+                activityDiv.appendChild(activityNameSpan);
+                activityDiv.appendChild(deselectButton);
+                selectedActivitiesArea.appendChild(activityDiv);
+            });
+        }
+        
+        function updateSelectedCount(){
+            selectedCountSpan.textContent = selectedActivities.length;
+        }
+
+        activitySearchInput.addEventListener("input", (e) => {
+            renderTypeahead(e.target.value);
+        });
+
+        // Hide typeahead when clicking outside
+        document.addEventListener("click", function(event) {
+            if (!activitySearchInput.contains(event.target) && !typeaheadResultsDiv.contains(event.target)) {
+                typeaheadResultsDiv.classList.add("hidden");
+            }
+        });
+        
+        startTodaysPhrasesButton.addEventListener("click", () => {
+            if(selectedActivities.length > 0){
+                alert("Navigate to swipeable PhraseCards for all selected activities - Placeholder");
+            }
+        });
+
+        // Initial render
+        renderSelectedActivities();
+        updateSelectedCount();
+
+    </script>
+</body>
+</html>
+

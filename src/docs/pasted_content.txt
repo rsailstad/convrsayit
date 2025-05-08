@@ -1,0 +1,244 @@
+I am building a conversational language learning mobile app called convrSAYit. It is focused on helping users (currently starting with Romanian learners) master real-life conversational fluency. I want the app to be fast, engaging, and AI-enhanced. Below is the full scope of functionality, feature modules, UX/UI expectations, and tech stack preferences.
+
+
+---
+
+Project Name: convrSAYit
+
+Target Audience: Beginners to intermediate Romanian learners who want to speak fluently and confidently through personalized, situational practice.
+
+
+---
+
+Core Purpose
+
+Help expats or travelers become fluent in real-world conversational Romanian, not just textbook grammar.
+
+Provide culturally relevant phrases with context, humor, and usage tracking.
+
+Gamify the process to maintain daily engagement and accountability.
+
+
+
+---
+
+MVP Feature Requirements:
+
+1. PhraseCards
+
+Each PhraseCard contains:
+
+A situational phrase in Romanian
+
+English translation
+
+Grammar or syntax breakdown (tooltips or collapsible section)
+
+An option to:
+
+Hear the pronunciation (TTS)
+
+Tap to mark as “Used in Real Life” or “Reviewed”
+
+Rate usefulness (1–5 stars)
+
+Add to “Favorites”
+
+
+A small laugh icon: When tapped, replaces the main phrase with a funny/slang equivalent or local joke (culturally appropriate)
+
+ChatGPT-powered “Ask a follow-up” feature for users to get clarification or variations.
+
+
+
+
+---
+
+2. Daily Phrase Challenge
+
+Users receive 1–3 phrases daily based on:
+
+Their profile (Beginner/Intermediate, use cases like "Going to the market", "Work", etc.)
+
+Past interaction history and review progress
+
+
+Phrases should rotate across categories (e.g., shopping, dining, dating, transport)
+
+
+
+---
+
+3. Progress Tracker Dashboard
+
+Stats to include:
+
+Phrases reviewed
+
+Phrases used in real life
+
+Effectiveness rating averages
+
+Daily streak counter
+
+Custom “Conversational Fluency Score” = Weighted metric based on review frequency, usage, and effectiveness
+
+
+
+
+---
+
+4. Profile Settings
+
+User level: Beginner / Intermediate
+
+Phrase pack focus: Daily life / Business / Dating / Tourist
+
+Native language (default English, but app should be designed to support other source languages later)
+
+Option to toggle “Slang/Fun phrases” on/off
+
+
+
+---
+
+5. AI Assistant Integration
+
+Use OpenAI or similar API to:
+
+Generate phrase alternatives
+
+Answer grammar clarification questions
+
+Explain cultural relevance of a phrase
+
+Help build personalized practice agendas
+
+
+Prompt examples:
+
+"Give me a funny version of this phrase"
+
+"Explain this grammar rule simply"
+
+"Give me 3 ways to say this phrase more casually"
+
+
+
+
+---
+
+Tech Stack Preference
+
+Frontend:
+
+React (for web)
+
+Tailwind CSS
+
+React Native (for mobile)
+
+
+Backend:
+
+Firebase (Auth, Firestore for phrase storage, analytics)
+
+OR Rails/PostgreSQL backend with API endpoints for content retrieval and tracking
+
+
+AI Integration:
+
+OpenAI API (for explanations, jokes, clarifications)
+
+
+Audio:
+
+Google Cloud TTS or ElevenLabs for pronunciation
+
+
+Deployment:
+
+Web: Vercel or Netlify
+
+Mobile: Expo for React Native, deploy to Android/iOS
+
+
+Optional Add-ons:
+
+Stripe (if converting to paid model later)
+
+Localization module for future languages
+
+
+
+
+---
+
+Design/UX Guidelines
+
+Mobile-first
+
+Bright, cheerful UI with color-coded categories
+
+Emphasis on “small wins” – feedback animations when users complete phrases
+
+“Laugh icon” next to phrases to surprise/delight users
+
+Gamified tracking (like Duolingo, but focused on real-life use, not XP)
+
+
+
+---
+
+Scalability Notes
+
+The architecture must be designed to support:
+
+Adding multiple languages
+
+Community-submitted phrases (eventually)
+
+Teacher dashboard (future release)
+
+
+
+
+---
+
+Deliverables Needed from AI or Dev Assistant:
+
+1. Full React or React Native boilerplate for PhraseCard component with TTS, ratings, and AI integration
+
+
+2. Firebase schema for storing:
+
+Users
+
+PhrasePacks
+
+PhraseCard metadata (category, level, joke version, etc.)
+
+User progress
+
+
+
+3. API integration pattern for OpenAI (explain phrase, generate alt versions)
+
+
+4. Simple dashboard layout with Tailwind
+
+
+5. Authentication logic (email, or Google/Facebook login)
+
+
+6. Mobile app packaging instructions (Expo)
+
+
+
+
+---
+
+Sample Prompt to OpenAI inside app:
+
+“Explain this Romanian phrase in plain English: ‘Ce faci?’ and give me 3 casual alternatives for a friend.”
+
