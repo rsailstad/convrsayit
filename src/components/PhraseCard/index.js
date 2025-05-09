@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, LayoutAnimation, UIManager, Platform } from 'react-native';
+import { LayoutAnimation, Platform, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -9,7 +9,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 // Placeholder for icons, e.g., from expo-vector-icons
 // import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'; // Example icon import
 
-const PhraseCard = ({ phraseData }) => {
+const PhraseCard = ({ phraseData, targetLanguage = 'Romanian' }) => {
   const [isGrammarExpanded, setIsGrammarExpanded] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [rating, setRating] = useState(0); // 0 for no rating, 1-5 for stars
@@ -18,8 +18,8 @@ const PhraseCard = ({ phraseData }) => {
   // Default data if phraseData is not provided
   const defaultPhrase = {
     id: 'default1',
-    romanian: 'Salut, ce faci?',
-    english: 'Hello, how are you?',
+    english_phrase: 'Hello, how are you?',
+    translated_phrase: 'Salut, ce faci?',
     grammar: 'This is a common greeting. "Ce" means "what", "faci" means "you do/are doing".',
     joke: 'Salut, șefu\'! Ai un leu?', // Example joke/slang
     category: 'Greetings',
@@ -49,8 +49,12 @@ const PhraseCard = ({ phraseData }) => {
 
   return (
     <View style={styles.cardContainer}>
-      <Text style={styles.romanianText}>{showJoke ? currentPhrase.joke : currentPhrase.romanian}</Text>
-      {!showJoke && <Text style={styles.englishText}>{currentPhrase.english}</Text>}
+      <Text style={styles.translatedText}>
+        {showJoke ? currentPhrase.joke : currentPhrase.translated_phrase}
+      </Text>
+      {!showJoke && (
+        <Text style={styles.englishText}>{currentPhrase.english_phrase}</Text>
+      )}
 
       {/* Grammar/Syntax Breakdown (Collapsible) */}
       {!showJoke && (
@@ -70,14 +74,23 @@ const PhraseCard = ({ phraseData }) => {
 
       {/* Action Buttons */}
       <View style={styles.actionsContainer}>
-        <TouchableOpacity style={styles.actionButton} onPress={() => console.log('TTS Placeholder for:', currentPhrase.romanian)}>
+        <TouchableOpacity 
+          style={styles.actionButton} 
+          onPress={() => console.log('TTS Placeholder for:', currentPhrase.translated_phrase)}
+        >
           {/* <Ionicons name="volume-medium-outline" size={24} color="#4A90E2" /> */}
           <Text style={styles.actionButtonText}>Hear</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton} onPress={() => console.log(`Marked "${currentPhrase.romanian}" as Used`)}>
+        <TouchableOpacity 
+          style={styles.actionButton} 
+          onPress={() => console.log(`Marked "${currentPhrase.translated_phrase}" as Used`)}
+        >
           <Text style={styles.actionButtonText}>Used It!</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton} onPress={() => console.log(`Marked "${currentPhrase.romanian}" as Reviewed`)}>
+        <TouchableOpacity 
+          style={styles.actionButton} 
+          onPress={() => console.log(`Marked "${currentPhrase.translated_phrase}" as Reviewed`)}
+        >
           <Text style={styles.actionButtonText}>Reviewed</Text>
         </TouchableOpacity>
       </View>
@@ -106,7 +119,10 @@ const PhraseCard = ({ phraseData }) => {
       </View>
 
       {/* AI Follow-up */}
-      <TouchableOpacity style={styles.aiButton} onPress={() => console.log('OpenAI Follow-up for:', currentPhrase.romanian)}>
+      <TouchableOpacity 
+        style={styles.aiButton} 
+        onPress={() => console.log('OpenAI Follow-up for:', currentPhrase.translated_phrase)}
+      >
         <Text style={styles.aiButtonText}>Ask a follow-up (AI)</Text>
       </TouchableOpacity>
     </View>
@@ -126,7 +142,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4, // Android shadow
   },
-  romanianText: {
+  translatedText: {
     fontSize: 22, // Larger for emphasis
     fontWeight: 'bold',
     color: '#2c3e50', // Dark blue-grey for text

@@ -1,5 +1,6 @@
 // src/services/api.js
 import Constants from 'expo-constants';
+import db from './database';
 
 const supabaseUrl = Constants.expoConfig.extra.supabaseUrl;
 const supabaseAnonKey = Constants.expoConfig.extra.supabaseAnonKey;
@@ -14,9 +15,9 @@ const handleResponse = async (response) => {
 };
 
 // Fetch phrases (e.g., for a specific category or pack)
-export const fetchPhrases = async (params = {}) => {
+export const fetchPhrases = async (packId, language = 'Romanian') => {
   try {
-    return await phraseQueries.getPhrases(params);
+    return await db.phraseQueries.getPhrases({ pack_id: packId, target_language: language });
   } catch (error) {
     console.error('Error fetching phrases:', error);
     throw error;
@@ -24,9 +25,9 @@ export const fetchPhrases = async (params = {}) => {
 };
 
 // Fetch user progress (e.g., reviewed, used, favorites)
-export const fetchUserProgress = async (userId) => {
+export const fetchUserProgress = async (userId, language = 'Romanian') => {
   try {
-    return await phraseQueries.getUserProgress(userId);
+    return await db.phraseQueries.getUserProgress(userId, language);
   } catch (error) {
     console.error('Error fetching user progress:', error);
     throw error;
@@ -34,9 +35,9 @@ export const fetchUserProgress = async (userId) => {
 };
 
 // Fetch daily challenges for a user
-export const fetchDailyChallenges = async (userId) => {
+export const fetchDailyChallenges = async (userId, language = 'Romanian') => {
   try {
-    return await phraseQueries.getDailyChallenges(userId);
+    return await db.phraseQueries.getDailyChallenges(userId, language);
   } catch (error) {
     console.error('Error fetching daily challenges:', error);
     throw error;
@@ -44,9 +45,9 @@ export const fetchDailyChallenges = async (userId) => {
 };
 
 // Update user progress for a phrase
-export const updateUserProgress = async (userId, cardId, progress) => {
+export const updateUserProgress = async (userId, cardId, progress, language = 'Romanian') => {
   try {
-    return await phraseQueries.updateUserProgress(userId, cardId, progress);
+    return await db.phraseQueries.updateUserProgress(userId, cardId, progress, language);
   } catch (error) {
     console.error('Error updating user progress:', error);
     throw error;
@@ -54,7 +55,7 @@ export const updateUserProgress = async (userId, cardId, progress) => {
 };
 
 // Fetch activities from the database using REST API
-export const fetchActivities = async () => {
+export const fetchActivities = async (language = 'Romanian') => {
   try {
     const response = await fetch(`${supabaseUrl}/rest/v1/activities?select=*&is_active=eq.true&order=name.asc`, {
       headers: {
@@ -67,6 +68,34 @@ export const fetchActivities = async () => {
     return await handleResponse(response);
   } catch (error) {
     console.error('Error fetching activities:', error);
+    throw error;
+  }
+};
+
+// Fetch phrase packs for a specific language
+export const fetchPhrasePacks = async (language = 'Romanian') => {
+  try {
+    return await db.phraseQueries.getPhrasePacks(language);
+  } catch (error) {
+    console.error('Error fetching phrase packs:', error);
+    throw error;
+  }
+};
+
+// Update user's learning language
+export const updateUserLanguage = async (userId, language) => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ learning_language: language })
+      .eq('id', userId)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating user language:', error);
     throw error;
   }
 };

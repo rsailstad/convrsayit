@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { addTestActivity, fetchActivities } from '../../services/api';
+import { fetchActivities } from '../../services/api';
 import { deselectActivity, selectActivity } from '../../store/activitiesSlice';
 import { borderRadius, colors, shadows, spacing, typography } from '../../theme';
 
@@ -104,7 +104,7 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* TEMP: Button to add a test activity to Supabase */}
+      {/* TEMP: Button to add a test activity to Supabase - Commented out for now
       <TouchableOpacity
         style={{ backgroundColor: '#FFD700', padding: 10, borderRadius: 8, marginBottom: 10 }}
         onPress={async () => {
@@ -119,6 +119,7 @@ const HomeScreen = ({ navigation }) => {
       >
         <Text style={{ color: '#333', fontWeight: 'bold' }}>Add Test Activity to Supabase</Text>
       </TouchableOpacity>
+      */}
 
       <View style={styles.header}>
         <Image 

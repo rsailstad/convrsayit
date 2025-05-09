@@ -36,6 +36,9 @@ const phraseQueries = {
       if (filters.pack_id) {
         query = query.eq('pack_id', filters.pack_id);
       }
+      if (filters.target_language) {
+        query = query.eq('target_language', filters.target_language);
+      }
 
       const { data, error } = await query;
       if (error) throw error;
@@ -62,7 +65,7 @@ const phraseQueries = {
   },
 
   // Get user progress for phrases
-  getUserProgress: async (userId) => {
+  getUserProgress: async (userId, language = 'Romanian') => {
     try {
       const { data, error } = await supabase
         .from('userprogress')
@@ -70,7 +73,8 @@ const phraseQueries = {
           *,
           phrasecards (*)
         `)
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('language', language);
       
       if (error) throw error;
       return data;
@@ -80,13 +84,14 @@ const phraseQueries = {
   },
 
   // Update user progress for a phrase
-  updateUserProgress: async (userId, cardId, progress) => {
+  updateUserProgress: async (userId, cardId, progress, language = 'Romanian') => {
     try {
       const { data, error } = await supabase
         .from('userprogress')
         .upsert({
           user_id: userId,
           card_id: cardId,
+          language: language,
           ...progress,
           updated_at: new Date().toISOString()
         })
@@ -101,7 +106,7 @@ const phraseQueries = {
   },
 
   // Get daily challenges for a user
-  getDailyChallenges: async (userId) => {
+  getDailyChallenges: async (userId, language = 'Romanian') => {
     try {
       const { data, error } = await supabase
         .from('dailychallenges')
@@ -110,7 +115,24 @@ const phraseQueries = {
           phrasecards (*)
         `)
         .eq('user_id', userId)
+        .eq('language', language)
         .eq('assigned_date', new Date().toISOString().split('T')[0]);
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      handleSupabaseError(error);
+    }
+  },
+
+  // Get phrase packs for a specific language
+  getPhrasePacks: async (language = 'Romanian') => {
+    try {
+      const { data, error } = await supabase
+        .from('phrasepacks')
+        .select('*')
+        .eq('target_language', language)
+        .order('pack_name', { ascending: true });
       
       if (error) throw error;
       return data;
