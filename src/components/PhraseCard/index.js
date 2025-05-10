@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { LayoutAnimation, Platform, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { Animated, Image, LayoutAnimation, PanResponder, Platform, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -9,11 +9,40 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 // Placeholder for icons, e.g., from expo-vector-icons
 // import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'; // Example icon import
 
-const PhraseCard = ({ phraseData, targetLanguage = 'Romanian' }) => {
+const PhraseCard = ({ phraseData, targetLanguage = 'Romanian', currentIndex = 0, totalPhrases = 1, onNext, onPrevious }) => {
   const [isGrammarExpanded, setIsGrammarExpanded] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [rating, setRating] = useState(0); // 0 for no rating, 1-5 for stars
   const [showJoke, setShowJoke] = useState(false);
+  const [isPhoneticExpanded, setIsPhoneticExpanded] = useState(false);
+
+  const pan = useRef(new Animated.ValueXY()).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Only respond to horizontal swipes
+        return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dy) < 20;
+      },
+      onPanResponderMove: Animated.event([
+        null,
+        { dx: pan.x }
+      ], { useNativeDriver: false }),
+      onPanResponderRelease: (evt, gestureState) => {
+        if (gestureState.dx > 50) {
+          // Swipe right (previous)
+          onPrevious && onPrevious();
+        } else if (gestureState.dx < -50) {
+          // Swipe left (next)
+          onNext && onNext();
+        }
+        Animated.spring(pan, {
+          toValue: { x: 0, y: 0 },
+          useNativeDriver: false
+        }).start();
+      }
+    })
+  ).current;
 
   // Default data if phraseData is not provided
   const defaultPhrase = {
@@ -47,13 +76,41 @@ const PhraseCard = ({ phraseData, targetLanguage = 'Romanian' }) => {
     setShowJoke(!showJoke);
   };
 
+  const togglePhonetic = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIsPhoneticExpanded(!isPhoneticExpanded);
+  };
+
   return (
-    <View style={styles.cardContainer}>
+    <Animated.View style={[styles.cardContainer, pan.getLayout()]} {...panResponder.panHandlers}>
+      {/* App Logo */}
+      <Image source={require('../../assets/parrot-logo.png')} style={styles.logo} resizeMode="contain" />
+      {/* 1 of N Indicator */}
+      {totalPhrases > 1 && (
+        <Text style={styles.cardCount}>
+          {currentIndex + 1} of {totalPhrases}
+        </Text>
+      )}
       <Text style={styles.translatedText}>
         {showJoke ? currentPhrase.joke : currentPhrase.translated_phrase}
       </Text>
       {!showJoke && (
         <Text style={styles.englishText}>{currentPhrase.english_phrase}</Text>
+      )}
+
+      {/* Phonetic Breakdown (Collapsible) */}
+      {!showJoke && (
+        <TouchableOpacity onPress={togglePhonetic} activeOpacity={0.7}>
+          <View style={styles.phoneticHeader}>
+            <Text style={styles.phoneticTitle}>Phonetic Notes</Text>
+            <Text>{isPhoneticExpanded ? 'Hide' : 'Show'}</Text>
+          </View>
+        </TouchableOpacity>
+      )}
+      {isPhoneticExpanded && !showJoke && (
+        <View style={styles.phoneticContent}>
+          <Text>{currentPhrase.phonetic}</Text>
+        </View>
       )}
 
       {/* Grammar/Syntax Breakdown (Collapsible) */}
@@ -125,7 +182,7 @@ const PhraseCard = ({ phraseData, targetLanguage = 'Romanian' }) => {
       >
         <Text style={styles.aiButtonText}>Ask a follow-up (AI)</Text>
       </TouchableOpacity>
-    </View>
+    </Animated.View>
   );
 };
 
@@ -154,6 +211,27 @@ const styles = StyleSheet.create({
     color: '#7f8c8d', // Lighter grey for translation
     marginBottom: 15,
     textAlign: 'center',
+  },
+  phoneticHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#ecf0f1', // Light separator line
+    marginTop: 10,
+  },
+  phoneticTitle: {
+    fontWeight: '600',
+    color: '#16a34a', // Green for phonetic
+    fontSize: 16,
+  },
+  phoneticContent: {
+    padding: 10,
+    backgroundColor: '#f0fdf4', // Very light green for content background
+    borderRadius: 5,
+    marginTop: 5,
+    marginBottom: 15,
   },
   grammarHeader: {
     flexDirection: 'row',
@@ -241,6 +319,19 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  cardCount: {
+    textAlign: 'center',
+    color: '#888',
+    marginBottom: 8,
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  logo: {
+    width: 60,
+    height: 60,
+    alignSelf: 'center',
+    marginBottom: 8,
   },
 });
 

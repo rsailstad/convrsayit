@@ -1,35 +1,48 @@
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 
 import DashboardScreen from '../screens/Dashboard';
 import HomeScreen from '../screens/Home';
+import PhraseCardScreen from '../screens/PhraseCard';
 import ProfileScreen from '../screens/Profile';
 import { colors } from '../theme';
 
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const HomeStack = () => {
   return (
-    <Stack.Navigator>
+    <Stack.Navigator
+      initialRouteName="Home"
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: colors.primary,
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
       <Stack.Screen 
-        name="HomeScreen" 
+        name="Home" 
         component={HomeScreen}
-        options={{ headerShown: false }}
+        options={{ title: 'convrSAYit' }}
       />
       <Stack.Screen 
         name="Dashboard" 
         component={DashboardScreen}
-        options={{ 
-          title: 'Progress Dashboard',
-          headerStyle: {
-            backgroundColor: colors.primary,
-          },
-          headerTintColor: '#fff',
-        }}
+        options={{ title: 'My Progress' }}
+      />
+      <Stack.Screen 
+        name="PhraseCard" 
+        component={PhraseCardScreen}
+        options={({ route }) => ({ 
+          title: route.params?.activity?.name || 'Today\'s Phrases'
+        })}
       />
     </Stack.Navigator>
   );

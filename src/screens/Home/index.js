@@ -89,7 +89,7 @@ const HomeScreen = ({ navigation }) => {
   const renderSelectedActivityItem = ({ item }) => (
     <View style={styles.selectedActivityItem}>
       <TouchableOpacity
-        onPress={() => Alert.alert('Navigate to PhraseCards for:', item.name)}
+        onPress={() => navigation.navigate('PhraseCard', { activity: item })}
       >
         <Text style={styles.selectedActivityText}>{item.name}</Text>
       </TouchableOpacity>
@@ -104,20 +104,20 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* TEMP: Button to add a test activity to Supabase - Commented out for now
+      {/* TEMP: Button to add sample phrases to Supabase - Hidden for now
       <TouchableOpacity
-        style={{ backgroundColor: '#FFD700', padding: 10, borderRadius: 8, marginBottom: 10 }}
+        style={{ backgroundColor: '#4CAF50', padding: 10, borderRadius: 8, marginBottom: 10 }}
         onPress={async () => {
           try {
-            const result = await addTestActivity();
-            console.log('✅ Test activity inserted:', result);
-            Alert.alert('Test Activity Added', 'Check your activities list!');
+            const result = await addSamplePhrases();
+            console.log('✅ Sample phrases inserted:', result);
+            Alert.alert('Sample Phrases Added', 'Check your phrases list!');
           } catch (e) {
-            Alert.alert('Error', 'Failed to add test activity.');
+            Alert.alert('Error', 'Failed to add sample phrases.');
           }
         }}
       >
-        <Text style={{ color: '#333', fontWeight: 'bold' }}>Add Test Activity to Supabase</Text>
+        <Text style={{ color: '#fff', fontWeight: 'bold' }}>Add Sample Phrases to Supabase</Text>
       </TouchableOpacity>
       */}
 
@@ -166,7 +166,7 @@ const HomeScreen = ({ navigation }) => {
         style={[styles.startButton, selectedActivities.length === 0 && styles.disabledButton]}
         onPress={() => {
           if (selectedActivities.length > 0) {
-            Alert.alert('Navigate to swipeable PhraseCards for all selected activities');
+            navigation.navigate('PhraseCard', { activities: selectedActivities });
           }
         }}
         disabled={selectedActivities.length === 0}
