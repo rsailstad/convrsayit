@@ -1,22 +1,67 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useSelector } from 'react-redux';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
 import LanguageSelector from '../../components/LanguageSelector';
+import { supabase } from '../../config/supabase';
 import { fetchUserProgress, updateUserLanguage } from '../../services/api';
 
 const ProfileScreen = () => {
   const [userLanguage, setUserLanguage] = useState('Romanian');
   const [progress, setProgress] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
   
   // Get userId from Redux store
   const userId = useSelector(state => state.auth?.user?.id);
+  const dispatch = useDispatch();
 
   useEffect(() => {
     if (userId) {
       loadUserProgress();
     }
   }, [userLanguage, userId]);
+
+  const handleSignIn = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      // Dispatch user data to Redux store
+      dispatch({ type: 'auth/setUser', payload: data.user });
+      Alert.alert('Success', 'Signed in successfully!');
+    } catch (error) {
+      console.error('Error signing in:', error);
+      Alert.alert('Error', error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignUp = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      Alert.alert('Success', 'Account created! Please check your email for verification.');
+    } catch (error) {
+      console.error('Error signing up:', error);
+      Alert.alert('Error', error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const loadUserProgress = async () => {
     if (!userId) {
@@ -95,17 +140,55 @@ const ProfileScreen = () => {
 
   if (!userId) {
     return (
-      <View style={styles.container}>
+      <ScrollView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Profile</Text>
         </View>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Sign In Required</Text>
+          <Text style={styles.sectionTitle}>{isSignUp ? 'Create Account' : 'Sign In'}</Text>
           <Text style={styles.sectionDescription}>
-            Please sign in to access your profile and language preferences.
+            {isSignUp 
+              ? 'Create an account to track your progress and save your preferences.'
+              : 'Sign in to access your profile and language preferences.'}
           </Text>
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+
+          <TouchableOpacity 
+            style={styles.authButton}
+            onPress={isSignUp ? handleSignUp : handleSignIn}
+            disabled={isLoading}
+          >
+            <Text style={styles.authButtonText}>
+              {isLoading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.switchAuthButton}
+            onPress={() => setIsSignUp(!isSignUp)}
+          >
+            <Text style={styles.switchAuthText}>
+              {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
+            </Text>
+          </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -245,6 +328,35 @@ const styles = StyleSheet.create({
   settingButtonText: {
     fontSize: 16,
     color: '#2c3e50',
+  },
+  input: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    fontSize: 16,
+  },
+  authButton: {
+    backgroundColor: '#007AFF',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  authButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  switchAuthButton: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  switchAuthText: {
+    color: '#007AFF',
+    fontSize: 14,
   },
 });
 

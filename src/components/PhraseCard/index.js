@@ -1,10 +1,15 @@
 import React, { useRef, useState } from 'react';
-import { Animated, Image, LayoutAnimation, PanResponder, Platform, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
+import { Animated, Dimensions, Image, LayoutAnimation, PanResponder, Platform, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;
+const SWIPE_OUT_DURATION = 250;
+const CARD_WIDTH = SCREEN_WIDTH - 40; // Width of the card with padding
 
 // Placeholder for icons, e.g., from expo-vector-icons
 // import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'; // Example icon import
@@ -16,33 +21,65 @@ const PhraseCard = ({ phraseData, targetLanguage = 'Romanian', currentIndex = 0,
   const [showJoke, setShowJoke] = useState(false);
   const [isPhoneticExpanded, setIsPhoneticExpanded] = useState(false);
 
-  const pan = useRef(new Animated.ValueXY()).current;
+  const position = useRef(new Animated.ValueXY()).current;
+  const nextCardOpacity = position.x.interpolate({
+    inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+    outputRange: [1, 0, 1],
+    extrapolate: 'clamp'
+  });
+
+  const nextCardScale = position.x.interpolate({
+    inputRange: [-SCREEN_WIDTH / 2, 0, SCREEN_WIDTH / 2],
+    outputRange: [1, 0.8, 1],
+    extrapolate: 'clamp'
+  });
 
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        // Only respond to horizontal swipes
-        return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dy) < 20;
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderMove: (_, gesture) => {
+        position.setValue({ x: gesture.dx, y: 0 });
       },
-      onPanResponderMove: Animated.event([
-        null,
-        { dx: pan.x }
-      ], { useNativeDriver: false }),
-      onPanResponderRelease: (evt, gestureState) => {
-        if (gestureState.dx > 50) {
-          // Swipe right (previous)
-          onPrevious && onPrevious();
-        } else if (gestureState.dx < -50) {
-          // Swipe left (next)
-          onNext && onNext();
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dx > SWIPE_THRESHOLD) {
+          forceSwipe('right');
+        } else if (gesture.dx < -SWIPE_THRESHOLD) {
+          forceSwipe('left');
+        } else {
+          resetPosition();
         }
-        Animated.spring(pan, {
-          toValue: { x: 0, y: 0 },
-          useNativeDriver: false
-        }).start();
       }
     })
   ).current;
+
+  const forceSwipe = (direction) => {
+    const x = direction === 'right' ? SCREEN_WIDTH : -SCREEN_WIDTH;
+    Animated.timing(position, {
+      toValue: { x, y: 0 },
+      duration: SWIPE_OUT_DURATION,
+      useNativeDriver: false
+    }).start(() => onSwipeComplete(direction));
+  };
+
+  const onSwipeComplete = (direction) => {
+    const item = direction === 'right' ? onPrevious : onNext;
+    item && item();
+    position.setValue({ x: 0, y: 0 });
+  };
+
+  const resetPosition = () => {
+    Animated.spring(position, {
+      toValue: { x: 0, y: 0 },
+      useNativeDriver: false
+    }).start();
+  };
+
+  const getCardStyle = () => {
+    return {
+      ...position.getLayout(),
+      transform: [] // Remove rotation transform
+    };
+  };
 
   // Default data if phraseData is not provided
   const defaultPhrase = {
@@ -82,122 +119,167 @@ const PhraseCard = ({ phraseData, targetLanguage = 'Romanian', currentIndex = 0,
   };
 
   return (
-    <Animated.View style={[styles.cardContainer, pan.getLayout()]} {...panResponder.panHandlers}>
-      {/* App Logo */}
-      <Image source={require('../../assets/parrot-logo.png')} style={styles.logo} resizeMode="contain" />
-      {/* 1 of N Indicator */}
-      {totalPhrases > 1 && (
-        <Text style={styles.cardCount}>
-          {currentIndex + 1} of {totalPhrases}
-        </Text>
-      )}
-      <Text style={styles.translatedText}>
-        {showJoke ? currentPhrase.joke : currentPhrase.translated_phrase}
-      </Text>
-      {!showJoke && (
-        <Text style={styles.englishText}>{currentPhrase.english_phrase}</Text>
-      )}
-
-      {/* Phonetic Breakdown (Collapsible) */}
-      {!showJoke && (
-        <TouchableOpacity onPress={togglePhonetic} activeOpacity={0.7}>
-          <View style={styles.phoneticHeader}>
-            <Text style={styles.phoneticTitle}>Phonetic Notes</Text>
-            <Text>{isPhoneticExpanded ? 'Hide' : 'Show'}</Text>
-          </View>
-        </TouchableOpacity>
-      )}
-      {isPhoneticExpanded && !showJoke && (
-        <View style={styles.phoneticContent}>
-          <Text>{currentPhrase.phonetic}</Text>
-        </View>
-      )}
-
-      {/* Grammar/Syntax Breakdown (Collapsible) */}
-      {!showJoke && (
-        <TouchableOpacity onPress={toggleGrammar} activeOpacity={0.7}>
-          <View style={styles.grammarHeader}>
-            <Text style={styles.grammarTitle}>Grammar Notes</Text>
-            {/* <Ionicons name={isGrammarExpanded ? "chevron-up" : "chevron-down"} size={20} color="#4A90E2" /> */}
-            <Text>{isGrammarExpanded ? 'Hide' : 'Show'}</Text>
-          </View>
-        </TouchableOpacity>
-      )}
-      {isGrammarExpanded && !showJoke && (
-        <View style={styles.grammarContent}>
-          <Text>{currentPhrase.grammar}</Text>
-        </View>
-      )}
-
-      {/* Action Buttons */}
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity 
-          style={styles.actionButton} 
-          onPress={() => console.log('TTS Placeholder for:', currentPhrase.translated_phrase)}
-        >
-          {/* <Ionicons name="volume-medium-outline" size={24} color="#4A90E2" /> */}
-          <Text style={styles.actionButtonText}>Hear</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.actionButton} 
-          onPress={() => console.log(`Marked "${currentPhrase.translated_phrase}" as Used`)}
-        >
-          <Text style={styles.actionButtonText}>Used It!</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.actionButton} 
-          onPress={() => console.log(`Marked "${currentPhrase.translated_phrase}" as Reviewed`)}
-        >
-          <Text style={styles.actionButtonText}>Reviewed</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Rating System */}
-      <View style={styles.ratingContainer}>
-        <Text style={styles.ratingText}>Rate Usefulness: </Text>
-        {[1, 2, 3, 4, 5].map((star) => (
-          <TouchableOpacity key={star} onPress={() => handleSetRating(star)}>
-            {/* <MaterialCommunityIcons name={star <= rating ? "star" : "star-outline"} size={28} color="#FFD700" /> */}
-            <Text style={star <= rating ? styles.starFilled : styles.starOutline}>★</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <View style={styles.secondaryActionsContainer}>
-        <TouchableOpacity style={styles.secondaryActionButton} onPress={handleToggleFavorite}>
-          {/* <Ionicons name={isFavorite ? "heart" : "heart-outline"} size={24} color={isFavorite ? "#E91E63" : "#555"} /> */}
-          <Text style={styles.secondaryActionText}>{isFavorite ? 'Favorited' : 'Favorite'}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.secondaryActionButton} onPress={handleToggleJoke}>
-          {/* <Ionicons name="happy-outline" size={24} color="#F5A623" /> */}
-          <Text style={styles.secondaryActionText}>{showJoke ? 'Show Original' : 'Laugh'}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* AI Follow-up */}
-      <TouchableOpacity 
-        style={styles.aiButton} 
-        onPress={() => console.log('OpenAI Follow-up for:', currentPhrase.translated_phrase)}
+    <View style={styles.container}>
+      <Animated.View 
+        style={[
+          styles.cardContainer,
+          getCardStyle(),
+          { zIndex: 1 }
+        ]} 
+        {...panResponder.panHandlers}
       >
-        <Text style={styles.aiButtonText}>Ask a follow-up (AI)</Text>
-      </TouchableOpacity>
-    </Animated.View>
+        {/* App Logo */}
+        <View style={{ alignItems: 'center' }}>
+          <Image source={require('../../assets/parrot-logo.png')} style={styles.logo} resizeMode="contain" />
+        </View>
+        {/* 1 of N Indicator */}
+        {totalPhrases > 1 && (
+          <Text style={styles.cardCount}>
+            {currentIndex + 1} of {totalPhrases}
+          </Text>
+        )}
+        <Text style={styles.translatedText}>
+          {showJoke ? currentPhrase.joke : currentPhrase.translated_phrase}
+        </Text>
+        {!showJoke && (
+          <Text style={styles.englishText}>{currentPhrase.english_phrase}</Text>
+        )}
+
+        {/* Phonetic Breakdown (Collapsible) */}
+        {!showJoke && (
+          <TouchableOpacity onPress={togglePhonetic} activeOpacity={0.7}>
+            <View style={styles.phoneticHeader}>
+              <Text style={styles.phoneticTitle}>Phonetic Notes</Text>
+              <Text>{isPhoneticExpanded ? 'Hide' : 'Show'}</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+        {isPhoneticExpanded && !showJoke && (
+          <View style={styles.phoneticContent}>
+            <Text>{currentPhrase.phonetic}</Text>
+          </View>
+        )}
+
+        {/* Grammar/Syntax Breakdown (Collapsible) */}
+        {!showJoke && (
+          <TouchableOpacity onPress={toggleGrammar} activeOpacity={0.7}>
+            <View style={styles.grammarHeader}>
+              <Text style={styles.grammarTitle}>Grammar Notes</Text>
+              {/* <Ionicons name={isGrammarExpanded ? "chevron-up" : "chevron-down"} size={20} color="#4A90E2" /> */}
+              <Text>{isGrammarExpanded ? 'Hide' : 'Show'}</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+        {isGrammarExpanded && !showJoke && (
+          <View style={styles.grammarContent}>
+            <Text>{currentPhrase.grammar}</Text>
+          </View>
+        )}
+
+        {/* Action Buttons */}
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity 
+            style={styles.actionButton} 
+            onPress={() => console.log('TTS Placeholder for:', currentPhrase.translated_phrase)}
+          >
+            {/* <Ionicons name="volume-medium-outline" size={24} color="#4A90E2" /> */}
+            <Text style={styles.actionButtonText}>Hear</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.actionButton} 
+            onPress={() => console.log(`Marked "${currentPhrase.translated_phrase}" as Used`)}
+          >
+            <Text style={styles.actionButtonText}>Used It!</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.actionButton} 
+            onPress={() => console.log(`Marked "${currentPhrase.translated_phrase}" as Reviewed`)}
+          >
+            <Text style={styles.actionButtonText}>Reviewed</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Rating System */}
+        <View style={styles.ratingContainer}>
+          <Text style={styles.ratingText}>Rate Usefulness: </Text>
+          {[1, 2, 3, 4, 5].map((star) => (
+            <TouchableOpacity key={star} onPress={() => handleSetRating(star)}>
+              {/* <MaterialCommunityIcons name={star <= rating ? "star" : "star-outline"} size={28} color="#FFD700" /> */}
+              <Text style={star <= rating ? styles.starFilled : styles.starOutline}>★</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.secondaryActionsContainer}>
+          <TouchableOpacity style={styles.secondaryActionButton} onPress={handleToggleFavorite}>
+            {/* <Ionicons name={isFavorite ? "heart" : "heart-outline"} size={24} color={isFavorite ? "#E91E63" : "#555"} /> */}
+            <Text style={styles.secondaryActionText}>{isFavorite ? 'Favorited' : 'Favorite'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.secondaryActionButton} onPress={handleToggleJoke}>
+            {/* <Ionicons name="happy-outline" size={24} color="#F5A623" /> */}
+            <Text style={styles.secondaryActionText}>{showJoke ? 'Show Original' : 'Laugh'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* AI Follow-up */}
+        <TouchableOpacity 
+          style={styles.aiButton} 
+          onPress={() => console.log('OpenAI Follow-up for:', currentPhrase.translated_phrase)}
+        >
+          <Text style={styles.aiButtonText}>Ask a follow-up (AI)</Text>
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* Next Card Preview */}
+      <Animated.View 
+        style={[
+          styles.cardContainer,
+          styles.nextCard,
+          {
+            opacity: nextCardOpacity,
+            transform: [{ scale: nextCardScale }]
+          }
+        ]}
+      >
+        <View style={styles.nextCardContent}>
+          <Text style={styles.nextCardText}>Next Card</Text>
+        </View>
+      </Animated.View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: SCREEN_WIDTH,
+  },
   cardContainer: {
-    backgroundColor: '#FFFFFF', // Cheerful UI: Bright white background
+    width: CARD_WIDTH,
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 20,
-    marginHorizontal: 15,
-    marginVertical: 10,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
-    elevation: 4, // Android shadow
+    elevation: 4,
+  },
+  nextCard: {
+    backgroundColor: '#F5F5F5',
+    zIndex: 0,
+  },
+  nextCardContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nextCardText: {
+    color: '#999',
+    fontSize: 16,
   },
   translatedText: {
     fontSize: 22, // Larger for emphasis
@@ -330,7 +412,6 @@ const styles = StyleSheet.create({
   logo: {
     width: 60,
     height: 60,
-    alignSelf: 'center',
     marginBottom: 8,
   },
 });
