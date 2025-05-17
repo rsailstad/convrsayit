@@ -1,46 +1,85 @@
-# Welcome to your Expo app 👋
+# ConvrsayIt: Language Learning App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+ConvrsayIt is a language learning application built with React Native and Expo, designed to help users learn conversational phrases for real-world situations.
 
-## Get started
+## Features
 
-1. Install dependencies
+- **Activity-Based Phrases:** Learn phrases organized by everyday activities
+- **Interactive Flashcards:** Swipe through phrase cards with pronunciation, grammar notes, and slang alternatives
+- **AI-Generated Content:** Dynamic phrase generation via OpenAI integration
+- **Progress Tracking:** Track reviewed phrases and mastery level
+
+## Project Architecture
+
+For detailed information about the application architecture, design decisions, and code organization, see the [ARCHITECTURE.md](./ARCHITECTURE.md) document.
+
+## Getting Started
+
+1. Install dependencies:
 
    ```bash
    npm install
    ```
 
-2. Start the app
+2. Set up environment variables:
+   
+   Create a `.env` file in the root directory with:
+   
+   ```
+   EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   EXPO_PUBLIC_OPENAI_API_KEY=your_openai_api_key
+   EXPO_PUBLIC_APP_ENV=development
+   ```
+
+3. Start the development server:
 
    ```bash
    npx expo start
    ```
+   
+   For testing on external devices, use tunnel mode:
+   
+   ```bash
+   npx expo start --tunnel
+   ```
 
-In the output, you'll find options to open the app in a
+## Development Workflow
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### Code Organization
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+The project follows a feature-based organization structure:
 
-## Get a fresh project
+- `src/components/`: Reusable UI components
+- `src/screens/`: Screen components
+- `src/services/`: API and data services
+- `src/utils/`: Utility functions
+- `src/constants/`: Shared constants
+- `src/types/`: TypeScript type definitions
 
-When you're ready, run:
+### Available Scripts
 
-```bash
-npm run reset-project
-```
+- `npm start`: Start the Expo development server
+- `npm run android`: Run on Android emulator
+- `npm run ios`: Run on iOS simulator
+- `npm run web`: Run in web browser
+- `npm run lint`: Run ESLint
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Technologies
+
+- React Native / Expo
+- Redux Toolkit
+- React Navigation
+- TypeScript
+- Supabase
+- OpenAI API
 
 ## Learn more
 
 To learn more about developing your project with Expo, look at the following resources:
 
 - [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- [React Native documentation](https://reactnative.dev/docs/getting-started): Reference for React Native components and APIs.
 
 ## Join the community
 
