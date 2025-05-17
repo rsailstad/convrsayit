@@ -1,106 +1,82 @@
 import { useRoute } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import ErrorBoundary from '../../components/ErrorBoundary';
+import ErrorMessage from '../../components/ErrorMessage';
 import PhraseCardComponent from '../../components/PhraseCard';
-import { fetchPhrases } from '../../services/api';
+import { DEFAULT_NATIVE_LANGUAGE, DEFAULT_TARGET_LANGUAGE, GENERATION_MODES } from '../../constants/app';
+import { fetchPhrases } from '../../services/apiService';
 import { colors, spacing, typography } from '../../theme';
 import { generatePhrasecards } from '../../utils/ai';
+import { transformAIPhrasesForUI, transformPhrasesForUI } from '../../utils/transformers';
 
-const PhraseCardScreen = () => {
+const PhraseCardContent = () => {
   const route = useRoute();
-  const { activity, activities, mode = 'static' } = route.params;
+  const { activity, activities, mode = GENERATION_MODES.STATIC } = route.params;
   const [phrases, setPhrases] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const loadPhrases = async () => {
-      try {
-        setLoading(true);
+  const loadPhrases = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Determine which mode to use for phrasecard generation
+      if (mode === GENERATION_MODES.STATIC) {
+        // Use existing API-based logic
+        const activityIds = activity ? [activity.id] : activities.map(a => a.id);
+        const fetchedPhrases = await fetchPhrases(activityIds);
         
-        // Determine which mode to use for phrasecard generation
-        if (mode === 'static') {
-          // Use existing API-based logic
+        // Transform the data to match the PhraseCard component's expected format
+        setPhrases(transformPhrasesForUI(fetchedPhrases));
+        
+      } else if (mode === GENERATION_MODES.DYNAMIC) {
+        // Use AI-generated phrasecards
+        try {
+          // Extract activity names for the AI prompt
+          const activityNames = activity 
+            ? [activity.name] 
+            : activities.map(a => a.name);
+            
+          // Call the AI generation function
+          const generatedPhrases = await generatePhrasecards({
+            activities: activityNames,
+            nativeLanguage: DEFAULT_NATIVE_LANGUAGE,
+            targetLanguage: DEFAULT_TARGET_LANGUAGE
+          });
+          
+          // Transform the AI response to match the PhraseCard component's expected format
+          setPhrases(transformAIPhrasesForUI(generatedPhrases));
+          
+        } catch (aiError) {
+          console.error('Error generating phrases with AI:', aiError);
+          
+          // Fallback to static mode if AI fails
+          console.log('Falling back to static phrase generation...');
           const activityIds = activity ? [activity.id] : activities.map(a => a.id);
           const fetchedPhrases = await fetchPhrases(activityIds);
           
-          // Transform the data to match the PhraseCard component's expected format
-          const transformedPhrases = fetchedPhrases.map(phrase => ({
-            id: phrase.card_id,
-            english_phrase: phrase.english_phrase,
-            translated_phrase: phrase.translated_phrase,
-            category: phrase.category,
-            level: phrase.difficulty_level,
-            grammar: phrase.grammar_breakdown || 'No grammar notes available.',
-            joke: phrase.joke_slang_alternative || 'No alternative version available.',
-            phonetic: phrase.phonetic_breakdown || 'No phonetic guide available.'
-          }));
+          setPhrases(transformPhrasesForUI(fetchedPhrases));
           
-          setPhrases(transformedPhrases);
-        } else if (mode === 'dynamic') {
-          // Use AI-generated phrasecards
-          try {
-            // Extract activity names for the AI prompt
-            const activityNames = activity 
-              ? [activity.name] 
-              : activities.map(a => a.name);
-              
-            // Call the AI generation function
-            const generatedPhrases = await generatePhrasecards({
-              activities: activityNames,
-              nativeLanguage: 'English',
-              targetLanguage: 'Romanian' // TODO: Make this configurable
-            });
-            
-            // Transform the AI response to match the PhraseCard component's expected format
-            const transformedPhrases = generatedPhrases.map((phrase, index) => ({
-              id: `ai-${index}`,
-              english_phrase: phrase.native_phrase,
-              translated_phrase: phrase.translated_phrase,
-              category: phrase.activity,
-              level: 'AI Generated',
-              grammar: phrase.grammar_tip || 'No grammar notes available.',
-              joke: phrase.slang_version || 'No alternative version available.',
-              phonetic: phrase.phonetic || 'No phonetic guide available.'
-            }));
-            
-            setPhrases(transformedPhrases);
-          } catch (aiError) {
-            console.error('Error generating phrases with AI:', aiError);
-            
-            // Fallback to static mode if AI fails
-            console.log('Falling back to static phrase generation...');
-            const activityIds = activity ? [activity.id] : activities.map(a => a.id);
-            const fetchedPhrases = await fetchPhrases(activityIds);
-            
-            const transformedPhrases = fetchedPhrases.map(phrase => ({
-              id: phrase.card_id,
-              english_phrase: phrase.english_phrase,
-              translated_phrase: phrase.translated_phrase,
-              category: phrase.category,
-              level: phrase.difficulty_level,
-              grammar: phrase.grammar_breakdown || 'No grammar notes available.',
-              joke: phrase.joke_slang_alternative || 'No alternative version available.',
-              phonetic: phrase.phonetic_breakdown || 'No phonetic guide available.'
-            }));
-            
-            setPhrases(transformedPhrases);
-            
-            // Set a user-friendly error message but don't block the UI
-            setError('AI generation failed. Showing pre-made phrases instead.');
-          }
-        } else {
-          throw new Error(`Unsupported phrase generation mode: ${mode}`);
+          // Set a user-friendly error message but don't block the UI
+          setError('AI generation failed. Showing pre-made phrases instead.');
         }
-      } catch (err) {
-        console.error('Error loading phrases:', err);
-        setError('Failed to load phrases. Please try again.');
-      } finally {
-        setLoading(false);
+      } else {
+        throw new Error(`Unsupported phrase generation mode: ${mode}`);
       }
-    };
+    } catch (err) {
+      console.error('Error loading phrases:', err);
+      setError('Failed to load phrases. Please try again.');
+      // Clear phrases to show the error state
+      setPhrases([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     loadPhrases();
   }, [activity, activities, mode]);
 
@@ -112,20 +88,19 @@ const PhraseCardScreen = () => {
     );
   }
 
-  if (error && phrases.length === 0) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>{error}</Text>
-      </View>
-    );
-  }
-
   if (phrases.length === 0) {
     return (
       <View style={styles.container}>
-        <Text style={styles.noPhrasesText}>
-          No phrases found for {activity ? activity.name : 'selected activities'}.
-        </Text>
+        {error ? (
+          <ErrorMessage 
+            error={error}
+            onRetry={loadPhrases}
+          />
+        ) : (
+          <Text style={styles.noPhrasesText}>
+            No phrases found for {activity ? activity.name : 'selected activities'}.
+          </Text>
+        )}
       </View>
     );
   }
@@ -133,9 +108,11 @@ const PhraseCardScreen = () => {
   return (
     <View style={styles.container}>
       {error && (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorBannerText}>{error}</Text>
-        </View>
+        <ErrorMessage 
+          error={error} 
+          type="warning"
+          style={styles.errorBanner}
+        />
       )}
       <PhraseCardComponent
         phraseData={phrases[currentIndex]}
@@ -145,6 +122,14 @@ const PhraseCardScreen = () => {
         totalPhrases={phrases.length}
       />
     </View>
+  );
+};
+
+const PhraseCardScreen = () => {
+  return (
+    <ErrorBoundary>
+      <PhraseCardContent />
+    </ErrorBoundary>
   );
 };
 

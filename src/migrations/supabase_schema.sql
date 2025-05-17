@@ -11,6 +11,18 @@ CREATE TABLE IF NOT EXISTS Users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- User Subscriptions table
+CREATE TABLE IF NOT EXISTS user_subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES Users(id) ON DELETE CASCADE,
+    tier TEXT NOT NULL DEFAULT 'free',
+    valid_until TIMESTAMP WITH TIME ZONE NOT NULL,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id)
+);
+
 -- Phrase Packs table
 CREATE TABLE IF NOT EXISTS PhrasePacks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -74,6 +86,11 @@ CREATE TRIGGER update_users_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_user_subscriptions_updated_at
+    BEFORE UPDATE ON user_subscriptions
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
 CREATE TRIGGER update_phrase_packs_updated_at
     BEFORE UPDATE ON PhrasePacks
     FOR EACH ROW
@@ -100,4 +117,6 @@ CREATE INDEX IF NOT EXISTS idx_user_progress_user_id ON UserProgress(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_progress_card_id ON UserProgress(card_id);
 CREATE INDEX IF NOT EXISTS idx_daily_challenges_user_id ON DailyChallenges(user_id);
 CREATE INDEX IF NOT EXISTS idx_daily_challenges_card_id ON DailyChallenges(card_id);
-CREATE INDEX IF NOT EXISTS idx_daily_challenges_assigned_date ON DailyChallenges(assigned_date); 
+CREATE INDEX IF NOT EXISTS idx_daily_challenges_assigned_date ON DailyChallenges(assigned_date);
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_user_id ON user_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_subscriptions_valid_until ON user_subscriptions(valid_until); 

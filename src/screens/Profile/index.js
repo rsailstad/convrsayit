@@ -1,193 +1,220 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Clipboard, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import AuthForm from '../../components/AuthForm';
 import LanguageSelector from '../../components/LanguageSelector';
-import { supabase } from '../../config/supabase';
+import SubscriptionUpgradePrompt from '../../components/SubscriptionUpgradePrompt';
+import { SUBSCRIPTION_TIERS } from '../../constants/app';
 import { fetchUserProgress, updateUserLanguage } from '../../services/api';
+import { checkSession } from '../../store/authSlice';
+import { fetchUserSubscription } from '../../store/subscriptionSlice';
+import { colors, spacing, typography } from '../../theme';
 
 const ProfileScreen = () => {
+  const dispatch = useDispatch();
+  const { user, isAuthenticated, loading } = useSelector(state => state.auth);
+  const { tier: subscriptionTier, featureAccess } = useSelector(state => state.subscription);
   const [userLanguage, setUserLanguage] = useState('Romanian');
   const [progress, setProgress] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
-  
-  // Get userId from Redux store
-  const userId = useSelector(state => state.auth?.user?.id);
-  const dispatch = useDispatch();
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [copySuccess, setCopySuccess] = useState('');
 
   useEffect(() => {
-    if (userId) {
+    // Check for existing session on mount
+    dispatch(checkSession());
+    
+    // Fetch subscription status
+    if (isAuthenticated) {
+      dispatch(fetchUserSubscription());
+    }
+  }, [dispatch, isAuthenticated]);
+
+  useEffect(() => {
+    if (user?.id) {
       loadUserProgress();
     }
-  }, [userLanguage, userId]);
-
-  const handleSignIn = async () => {
-    try {
-      setIsLoading(true);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
-      // Dispatch user data to Redux store
-      dispatch({ type: 'auth/setUser', payload: data.user });
-      Alert.alert('Success', 'Signed in successfully!');
-    } catch (error) {
-      console.error('Error signing in:', error);
-      Alert.alert('Error', error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSignUp = async () => {
-    try {
-      setIsLoading(true);
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
-      Alert.alert('Success', 'Account created! Please check your email for verification.');
-    } catch (error) {
-      console.error('Error signing up:', error);
-      Alert.alert('Error', error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [userLanguage, user?.id]);
 
   const loadUserProgress = async () => {
-    if (!userId) {
+    if (!user?.id) {
       console.warn('No user ID available');
       return;
     }
 
     try {
       setIsLoading(true);
-      const userProgress = await fetchUserProgress(userId, userLanguage);
+      const userProgress = await fetchUserProgress(user.id, userLanguage);
       setProgress(userProgress);
     } catch (error) {
       console.error('Error loading user progress:', error);
-      Alert.alert('Error', 'Failed to load progress. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleLanguageChange = async (newLanguage) => {
-    if (!userId) {
-      Alert.alert('Error', 'Please sign in to change your language preference.');
+    if (!user?.id) {
       return;
     }
 
     try {
       setIsLoading(true);
-      await updateUserLanguage(userId, newLanguage);
+      await updateUserLanguage(user.id, newLanguage);
       setUserLanguage(newLanguage);
-      Alert.alert('Success', `Language updated to ${newLanguage}`);
     } catch (error) {
       console.error('Error updating language:', error);
-      Alert.alert('Error', 'Failed to update language. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const copyToClipboard = (text) => {
+    Clipboard.setString(text);
+    setCopySuccess('Copied!');
+    setTimeout(() => setCopySuccess(''), 2000);
+  };
+
+  const renderAccountSection = () => {
+    if (!user) return null;
+    
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Account Information</Text>
+        <View style={styles.accountInfo}>
+          <View style={styles.accountField}>
+            <Text style={styles.accountLabel}>User ID:</Text>
+            <Text style={styles.accountValue}>{user.id}</Text>
+            <TouchableOpacity 
+              style={styles.copyButton}
+              onPress={() => copyToClipboard(user.id)}
+            >
+              <Text style={styles.copyButtonText}>Copy</Text>
+            </TouchableOpacity>
+          </View>
+          {copySuccess ? <Text style={styles.copySuccess}>{copySuccess}</Text> : null}
+          
+          <View style={styles.accountField}>
+            <Text style={styles.accountLabel}>Email:</Text>
+            <Text style={styles.accountValue}>{user.email}</Text>
+          </View>
+          
+          <View style={styles.accountField}>
+            <Text style={styles.accountLabel}>Account Created:</Text>
+            <Text style={styles.accountValue}>
+              {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
+            </Text>
+          </View>
+          
+          <Text style={styles.accountNote}>
+            Use your User ID to add subscription records in the database for testing.
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
   const renderProgressSection = () => {
     if (!progress) return null;
 
-    const masteredPhrases = progress.filter(p => p.mastery_level >= 3).length;
-    const inProgressPhrases = progress.filter(p => p.mastery_level < 3).length;
-    const totalPhrases = progress.length;
-
     return (
       <View style={styles.progressContainer}>
-        <Text style={styles.progressTitle}>Learning Progress</Text>
-        
+        <Text style={styles.progressTitle}>Your Progress</Text>
         <View style={styles.progressStats}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{masteredPhrases}</Text>
-            <Text style={styles.statLabel}>Mastered</Text>
+            <Text style={styles.statValue}>{progress.completedPhrases || 0}</Text>
+            <Text style={styles.statLabel}>Completed</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{inProgressPhrases}</Text>
-            <Text style={styles.statLabel}>In Progress</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{totalPhrases}</Text>
+            <Text style={styles.statValue}>{progress.totalPhrases || 0}</Text>
             <Text style={styles.statLabel}>Total</Text>
           </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>
+              {progress.completedPhrases && progress.totalPhrases
+                ? Math.round((progress.completedPhrases / progress.totalPhrases) * 100)
+                : 0}%
+            </Text>
+            <Text style={styles.statLabel}>Progress</Text>
+          </View>
         </View>
-
         <View style={styles.progressBar}>
-          <View 
+          <View
             style={[
-              styles.progressFill, 
-              { width: `${(masteredPhrases / totalPhrases) * 100}%` }
-            ]} 
+              styles.progressFill,
+              {
+                width: `${progress.completedPhrases && progress.totalPhrases
+                  ? (progress.completedPhrases / progress.totalPhrases) * 100
+                  : 0}%`,
+              },
+            ]}
           />
         </View>
       </View>
     );
   };
 
-  if (!userId) {
+  const renderSubscriptionSection = () => {
+    const subscriptionInfo = {
+      [SUBSCRIPTION_TIERS.FREE]: {
+        title: 'Free Plan',
+        color: '#95a5a6',
+        description: 'Access to basic phrasecards and limited features.',
+        features: ['Access to pre-made phrasecards', 'Up to 10 phrasecards per day', 'Basic progress tracking']
+      },
+      [SUBSCRIPTION_TIERS.BASIC]: {
+        title: 'Basic Plan',
+        color: '#3498db',
+        description: 'Access to AI-generated phrases and more daily content.',
+        features: ['AI-generated phrasecards', 'Up to 30 phrasecards per day', 'Offline access', 'Advanced progress tracking']
+      },
+      [SUBSCRIPTION_TIERS.PREMIUM]: {
+        title: 'Premium Plan',
+        color: '#9b59b6',
+        description: 'Unlimited access to all features and content.',
+        features: ['Unlimited AI-generated phrasecards', 'All languages', 'Advanced grammar tips', 'Priority support']
+      }
+    };
+
+    const currentPlan = subscriptionInfo[subscriptionTier] || subscriptionInfo[SUBSCRIPTION_TIERS.FREE];
+
+    return (
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Your Subscription</Text>
+        
+        <View style={[styles.subscriptionCard, { borderColor: currentPlan.color }]}>
+          <View style={[styles.subscriptionBadge, { backgroundColor: currentPlan.color }]}>
+            <Text style={styles.subscriptionBadgeText}>{currentPlan.title}</Text>
+          </View>
+          
+          <Text style={styles.subscriptionDescription}>{currentPlan.description}</Text>
+          
+          <View style={styles.featuresList}>
+            {currentPlan.features.map((feature, index) => (
+              <View key={index} style={styles.featureItem}>
+                <Text style={styles.featureIcon}>•</Text>
+                <Text style={styles.featureText}>{feature}</Text>
+              </View>
+            ))}
+          </View>
+          
+          {subscriptionTier === SUBSCRIPTION_TIERS.FREE && (
+            <TouchableOpacity 
+              style={styles.upgradeButton}
+              onPress={() => setShowUpgradeModal(true)}
+            >
+              <Text style={styles.upgradeButtonText}>Upgrade Your Plan</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  if (!isAuthenticated) {
     return (
       <ScrollView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Profile</Text>
-        </View>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{isSignUp ? 'Create Account' : 'Sign In'}</Text>
-          <Text style={styles.sectionDescription}>
-            {isSignUp 
-              ? 'Create an account to track your progress and save your preferences.'
-              : 'Sign in to access your profile and language preferences.'}
-          </Text>
-          
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-
-          <TouchableOpacity 
-            style={styles.authButton}
-            onPress={isSignUp ? handleSignUp : handleSignIn}
-            disabled={isLoading}
-          >
-            <Text style={styles.authButtonText}>
-              {isLoading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.switchAuthButton}
-            onPress={() => setIsSignUp(!isSignUp)}
-          >
-            <Text style={styles.switchAuthText}>
-              {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <AuthForm />
       </ScrollView>
     );
   }
@@ -198,13 +225,17 @@ const ProfileScreen = () => {
         <Text style={styles.title}>Profile</Text>
       </View>
 
+      {renderAccountSection()}
+
+      {renderSubscriptionSection()}
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Learning Language</Text>
         <Text style={styles.sectionDescription}>
           Select the language you want to learn. All phrases will be shown in English and your selected language.
         </Text>
         <LanguageSelector
-          userId={userId}
+          userId={user?.id}
           currentLanguage={userLanguage}
           onLanguageChange={handleLanguageChange}
           disabled={isLoading}
@@ -228,6 +259,17 @@ const ProfileScreen = () => {
           <Text style={styles.settingButtonText}>Notification Settings</Text>
         </TouchableOpacity>
       </View>
+
+      {showUpgradeModal && (
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <SubscriptionUpgradePrompt 
+              feature="premium features"
+              onContinueWithBasic={() => setShowUpgradeModal(false)}
+            />
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 };
@@ -235,128 +277,212 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
   header: {
-    padding: 20,
-    backgroundColor: '#fff',
+    padding: spacing.lg,
+    backgroundColor: colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: colors.border,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: typography.fontSize.xlarge,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.primary,
   },
   section: {
-    backgroundColor: '#fff',
-    marginVertical: 8,
-    marginHorizontal: 16,
-    padding: 16,
+    backgroundColor: colors.white,
+    marginVertical: spacing.sm,
+    marginHorizontal: spacing.md,
+    padding: spacing.lg,
     borderRadius: 8,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
+    fontSize: typography.fontSize.large,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.sm,
   },
   sectionDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 16,
+    fontSize: typography.fontSize.medium,
+    color: colors.text.secondary,
+    marginBottom: spacing.md,
     lineHeight: 20,
   },
+  accountInfo: {
+    marginTop: spacing.sm,
+  },
+  accountField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    flexWrap: 'wrap',
+  },
+  accountLabel: {
+    fontSize: typography.fontSize.medium,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.primary,
+    width: 120,
+  },
+  accountValue: {
+    fontSize: typography.fontSize.medium,
+    color: colors.text.secondary,
+    flex: 1,
+  },
+  accountNote: {
+    fontSize: typography.fontSize.small,
+    color: colors.text.secondary,
+    fontStyle: 'italic',
+    marginTop: spacing.sm,
+  },
+  copyButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs / 2,
+    borderRadius: 4,
+    marginLeft: spacing.sm,
+  },
+  copyButtonText: {
+    color: colors.white,
+    fontSize: typography.fontSize.small,
+    fontWeight: typography.fontWeight.bold,
+  },
+  copySuccess: {
+    color: 'green',
+    fontSize: typography.fontSize.small,
+    marginBottom: spacing.sm,
+  },
   progressContainer: {
-    backgroundColor: '#fff',
-    marginVertical: 8,
-    marginHorizontal: 16,
-    padding: 16,
+    backgroundColor: colors.white,
+    marginVertical: spacing.sm,
+    marginHorizontal: spacing.md,
+    padding: spacing.lg,
     borderRadius: 8,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   progressTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 16,
+    fontSize: typography.fontSize.large,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.text.primary,
+    marginBottom: spacing.md,
   },
   progressStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   statItem: {
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2c3e50',
+    fontSize: typography.fontSize.xlarge,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.primary,
   },
   statLabel: {
-    fontSize: 14,
-    color: '#7f8c8d',
-    marginTop: 4,
+    fontSize: typography.fontSize.small,
+    color: colors.text.secondary,
+    marginTop: spacing.xs,
   },
   progressBar: {
     height: 8,
-    backgroundColor: '#ecf0f1',
+    backgroundColor: colors.border,
     borderRadius: 4,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#3498db',
+    backgroundColor: colors.primary,
     borderRadius: 4,
   },
   settingButton: {
-    backgroundColor: '#f8f9fa',
-    padding: 16,
+    backgroundColor: colors.background,
+    padding: spacing.md,
     borderRadius: 8,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   settingButtonText: {
-    fontSize: 16,
-    color: '#2c3e50',
+    fontSize: typography.fontSize.medium,
+    color: colors.text.primary,
   },
-  input: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
+  subscriptionCard: {
+    borderWidth: 2,
     borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    fontSize: 16,
+    padding: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+    position: 'relative',
+    paddingTop: spacing.xl * 1.5,
   },
-  authButton: {
-    backgroundColor: '#007AFF',
-    padding: 16,
+  subscriptionBadge: {
+    position: 'absolute',
+    top: -15,
+    left: 20,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: 20,
+  },
+  subscriptionBadgeText: {
+    color: colors.white,
+    fontWeight: typography.fontWeight.bold,
+    fontSize: typography.fontSize.medium,
+  },
+  subscriptionDescription: {
+    fontSize: typography.fontSize.medium,
+    color: colors.text.secondary,
+    marginBottom: spacing.md,
+  },
+  featuresList: {
+    marginBottom: spacing.md,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    marginBottom: spacing.xs,
+  },
+  featureIcon: {
+    fontSize: typography.fontSize.medium,
+    marginRight: spacing.sm,
+    color: colors.text.secondary,
+  },
+  featureText: {
+    fontSize: typography.fontSize.medium,
+    color: colors.text.secondary,
+  },
+  upgradeButton: {
+    backgroundColor: colors.primary,
+    padding: spacing.md,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 8,
   },
-  authButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+  upgradeButtonText: {
+    color: colors.white,
+    fontSize: typography.fontSize.medium,
+    fontWeight: typography.fontWeight.bold,
   },
-  switchAuthButton: {
-    marginTop: 16,
+  modalContainer: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  switchAuthText: {
-    color: '#007AFF',
-    fontSize: 14,
+  modalContent: {
+    width: '90%',
+    backgroundColor: colors.white,
+    borderRadius: 8,
+    padding: spacing.md,
   },
 });
 

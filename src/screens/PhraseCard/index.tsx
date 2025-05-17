@@ -1,14 +1,18 @@
 import { useRoute } from '@react-navigation/native';
+import { AnyAction, ThunkDispatch } from '@reduxjs/toolkit';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import ErrorMessage from '../../components/ErrorMessage';
 import PhraseCardComponent from '../../components/PhraseCard';
+import SubscriptionUpgradePrompt from '../../components/SubscriptionUpgradePrompt';
 import { DEFAULT_NATIVE_LANGUAGE, DEFAULT_TARGET_LANGUAGE, GENERATION_MODES } from '../../constants/app';
+import aiService from '../../services/ai';
 import { fetchPhrases } from '../../services/apiService';
+import { checkFeatureAccess, FeatureAccess } from '../../store/subscriptionSlice';
 import { colors, spacing, typography } from '../../theme';
 import { PhraseCardScreenParams, UIPhraseCard } from '../../types';
-import { generatePhrasecards } from '../../utils/ai';
 import { transformAIPhrasesForUI, transformPhrasesForUI } from '../../utils/transformers';
 
 // Add missing color values to colors for TypeScript
@@ -20,6 +24,13 @@ const extendedColors = {
   white: '#FFFFFF'
 };
 
+// Define the RootState type
+interface RootState {
+  subscription: {
+    featureAccess: FeatureAccess;
+  };
+}
+
 const PhraseCardContent: React.FC = () => {
   const route = useRoute();
   const { activity, activities, mode = GENERATION_MODES.STATIC } = route.params as PhraseCardScreenParams;
@@ -27,11 +38,45 @@ const PhraseCardContent: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  
+  const dispatch = useDispatch<ThunkDispatch<RootState, unknown, AnyAction>>();
+  const { featureAccess } = useSelector((state: RootState) => state.subscription);
+  
   const loadPhrases = async (): Promise<void> => {
     try {
       setLoading(true);
       setError(null);
+      setShowUpgradePrompt(false);
+      
+      // Check if AI generation is allowed for the user's subscription
+      if (mode === GENERATION_MODES.DYNAMIC) {
+        // Dispatch action to check feature access
+        const resultAction = await dispatch(checkFeatureAccess('aiGeneration'));
+        
+        // Type the payload correctly
+        interface CheckFeatureAccessResult {
+          featureName: keyof FeatureAccess;
+          hasAccess: boolean;
+        }
+        
+        const payload = resultAction.payload as CheckFeatureAccessResult;
+        const hasAccess = payload?.hasAccess;
+
+        if (!hasAccess) {
+          console.log('User does not have access to AI generation');
+          setShowUpgradePrompt(true);
+          
+          // Fall back to static mode for free users
+          const activityIds = activity ? [activity.id] : activities?.map(a => a.id) || [];
+          const fetchedPhrases = await fetchPhrases(activityIds);
+          setPhrases(transformPhrasesForUI(fetchedPhrases));
+          
+          setError('Your current subscription does not include AI-generated phrases.');
+          setLoading(false);
+          return;
+        }
+      }
       
       // Determine which mode to use for phrasecard generation
       if (mode === GENERATION_MODES.STATIC) {
@@ -51,7 +96,7 @@ const PhraseCardContent: React.FC = () => {
             : activities?.map(a => a.name) || [];
             
           // Call the AI generation function
-          const generatedPhrases = await generatePhrasecards({
+          const generatedPhrases = await aiService.generatePhrasecards({
             activities: activityNames,
             nativeLanguage: DEFAULT_NATIVE_LANGUAGE,
             targetLanguage: DEFAULT_TARGET_LANGUAGE
@@ -94,6 +139,29 @@ const PhraseCardContent: React.FC = () => {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color={extendedColors.primary} />
+      </View>
+    );
+  }
+
+  if (showUpgradePrompt) {
+    return (
+      <View style={styles.container}>
+        <SubscriptionUpgradePrompt 
+          feature="AI-generated phrases"
+          onContinueWithBasic={() => {
+            // Continue with basic functionality (non-AI)
+            setShowUpgradePrompt(false);
+          }}
+        />
+        {phrases.length > 0 && (
+          <PhraseCardComponent
+            phraseData={phrases[currentIndex]}
+            onNext={() => setCurrentIndex((prev) => (prev + 1) % phrases.length)}
+            onPrevious={() => setCurrentIndex((prev) => (prev - 1 + phrases.length) % phrases.length)}
+            currentIndex={currentIndex}
+            totalPhrases={phrases.length}
+          />
+        )}
       </View>
     );
   }

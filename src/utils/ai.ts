@@ -5,6 +5,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { IS_DEVELOPMENT, OPENAI_API_KEY, OPENAI_API_URL } from '../config/env';
 import { DEFAULT_NATIVE_LANGUAGE, DEFAULT_TARGET_LANGUAGE, STORAGE_KEYS } from '../constants/app';
+import { AIGeneratedPhrase } from '../types';
 
 // API configuration
 const BASE_URL = OPENAI_API_URL;
@@ -15,7 +16,7 @@ const API_KEY_STORAGE_KEY = STORAGE_KEYS.OPENAI_API_KEY;
  * - In development: Uses the environment variable or a fallback
  * - In production: Retrieves from secure storage
  */
-async function getApiKey() {
+async function getApiKey(): Promise<string> {
   try {
     // For development, use environment variable if available
     if (IS_DEVELOPMENT && OPENAI_API_KEY) {
@@ -45,7 +46,7 @@ async function getApiKey() {
  * Saves the API key to secure storage
  * Use this when the user enters their API key in your app
  */
-export async function saveApiKey(apiKey) {
+export async function saveApiKey(apiKey: string): Promise<boolean> {
   try {
     await SecureStore.setItemAsync(API_KEY_STORAGE_KEY, apiKey);
     return true;
@@ -55,20 +56,23 @@ export async function saveApiKey(apiKey) {
   }
 }
 
+interface GeneratePhrasecardParams {
+  activities: string[];
+  targetLanguage?: string;
+  nativeLanguage?: string;
+}
+
 /**
  * Generates language phrasecards based on specified activities
  * 
- * @param {Object} params - Parameters for generating phrasecards
- * @param {string[]} params.activities - Array of activity descriptions
- * @param {string} params.targetLanguage - Language the user wants to learn
- * @param {string} params.nativeLanguage - User's native language
- * @returns {Promise<Array>} - Array of phrasecard objects
+ * @param {GeneratePhrasecardParams} params - Parameters for generating phrasecards
+ * @returns {Promise<AIGeneratedPhrase[]>} - Array of phrasecard objects
  */
 async function generatePhrasecards({ 
   activities, 
   targetLanguage = DEFAULT_TARGET_LANGUAGE, 
   nativeLanguage = DEFAULT_NATIVE_LANGUAGE 
-}) {
+}: GeneratePhrasecardParams): Promise<AIGeneratedPhrase[]> {
   try {
     // Validate inputs
     if (!Array.isArray(activities) || activities.length < 1) {
@@ -143,7 +147,7 @@ async function generatePhrasecards({
       const content = data.choices[0].message.content;
       
       // Parse the JSON string into an object
-      const phrasecards = JSON.parse(content);
+      const phrasecards = JSON.parse(content) as AIGeneratedPhrase[];
       
       // Validate that we got an array of objects with the expected properties
       if (!Array.isArray(phrasecards)) {
@@ -164,31 +168,13 @@ async function generatePhrasecards({
       return phrasecards;
     } catch (parseError) {
       console.error("Failed to parse response:", parseError);
-      throw new Error(`Failed to parse API response: ${parseError.message}`);
+      throw new Error(`Failed to parse API response: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
     }
   } catch (error) {
     console.error("Error generating phrasecards:", error);
     throw error; // Re-throw to allow the caller to handle the error
   }
 }
-
-/**
- * Example usage:
- * 
- * const activities = [
- *   "Ordering coffee",
- *   "Asking for directions",
- *   "Paying a delivery driver",
- *   "Introducing yourself",
- *   "Asking for the check at a restaurant"
- * ];
- * 
- * const phrasecards = await generatePhrasecards({
- *   activities,
- *   targetLanguage: "Romanian",
- *   nativeLanguage: "English"
- * });
- */
 
 // Export generatePhrasecards only here, saveApiKey is already exported with its declaration
 export { generatePhrasecards };
